@@ -1,0 +1,22 @@
+{
+  "name": "hw8",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "angular": "^1.7.5",
+    "angular-auto-complete": "^1.7.4",
+    "angular-route": "^1.7.4",
+    "express": "^4.16.4",
+    "jade": "^1.11.0",
+    "morgan": "^1.9.1",
+    "ngeohash": "^0.6.0",
+    "request": "^2.88.0",
+    "spotify-web-api-node": "^4.0.0"
+  }
+}

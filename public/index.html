@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Entertainment Event Search</title>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.7.5/angular.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-svg-round-progressbar/0.4.8/roundProgress.min.js"></script>	
+	<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.7.5/angular-animate.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/angular-material/1.1.10/angular-material.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.bundle.min.js" integrity="sha384-pjaaA8dDz/5BgdFUPX6M/9SUZv4d12SUPF0axWc+VRZkx5xU3daN+lYb49+Ax+Tl" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.js"></script>
+	<script type="text/javascript" async src="https://platform.twitter.com/widgets.js"></script>
+	<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-modal/0.9.1/jquery.modal.min.css"/>
+	<script>
+			angular.module('myApp',['angular-svg-round-progressbar'])
+	</script>
+	<script>
+		$(document).ready(function(){
+    		$.ajax({
+    			url: "http://ip-api.com/json",
+    			dateType: "json",
+    			method: "GET",
+    		}).done(function(data){
+    			$("#currentLat").val(data.lat);
+    			$("#currentLon").val(data.lon);
+    			console.log(data.lat);
+    		}).fail(function(){
+    			console.log("Failed to get Ip Address.");
+    		})
+    		//initialize
+    		var globalKey = "favoriteList";
+    		var favoriteList = localStorage.getItem(globalKey);
+    		if (favoriteList == undefined) {
+    			favoriteList = {};
+    			localStorage.setItem(globalKey, JSON.stringify(favoriteList));
+    		}
+
+    		//enable tooltip
+			$("body").tooltip({
+			selector: '[data-toggle="tooltip"]'
+			})
+    		
+			//validation
+			$(".checkValidation1").blur(function(){
+				if ($(".checkValidation1").val() == "" || $(".checkValidation1").val().replace(/\s+/g,"") == "") {
+					$("#searchBtn").prop( "disabled", true );
+					$(".checkValidation1").css({
+						border: '1px solid red'
+					});
+					$('.invalidText1').css({
+						display: 'block'
+					});
+				}
+			})
+
+			$(".checkValidation2").blur(function(){
+				if ($(".checkValidation2").val() == "" || $(".checkValidation2").val().replace(/\s+/g,"") == "") {
+					$("#searchBtn").prop( "disabled", true );
+					$(".checkValidation2").css({
+						border: '1px solid red'
+					});
+					$('.invalidText2').css({
+						display: 'block'
+					});
+				}
+			})
+
+			$(".checkValidation1").keydown(function(e) {
+				var code = (e.keyCode || e.which);
+				if(code == 32 || code == 8) {
+    				return;
+				}
+				$(".checkValidation1").css({
+					border: '1px solid black'
+				});
+				$('.invalidText1').css({
+					display: 'none'
+				});
+				
+			});
+
+			$(".checkValidation2").keydown(function(e) {
+				var code = (e.keyCode || e.which);
+				if(code == 32 || code == 8) {
+    				return;
+				}
+				$(".checkValidation2").css({
+					border: '1px solid black'
+				});
+				$('.invalidText2').css({
+					display: 'none'
+				});
+				$("#searchBtn").prop({
+					"disabled": false
+				});
+			});
+
+			$("#radioBtn2").change(function(event) {
+				if ( $( "#radioBtn2:checked" )) {
+					$(".checkValidation2").prop({
+						"disabled": false
+					})
+					if ($(".checkValidation2").val() == "" && $(".checkValidation2").val().replace(/\s+/g,"") == "") {
+						$("#searchBtn").prop({
+							"disabled": true
+						});
+					}
+				}
+			});
+
+			$("#radioBtn1").change(function(event) {
+				if ( $( "#radioBtn1:checked" )) {
+					$(".checkValidation2").prop({
+						"disabled": true
+					});
+				}
+				if ($(".checkValidation1").val() != "" && $(".checkValidation1").val().replace(/\s+/g,"") != "") {
+						$("#searchBtn").prop({
+							"disabled": false
+						});
+					}
+			});
+
+			$(".checkValidation1").change(function(event) {
+
+				if ($("#currentLat").val() == "" || $("#currentLat").val() == "") {
+					return;
+				}
+
+				if ($(".checkValidation1").val() != "" && $(".checkValidation1").val().replace(/\s+/g,"") != "") {
+					if ($("#radioBtn1:checked")) {
+						$("#searchBtn").prop({
+							"disabled": false
+						});
+					}
+				} 
+				return;
+			});
+
+			$("#searchBtn").click(function(){
+				$('#progressBar').css({
+					display: "block"
+				});
+				if ($( "#radioBtn1").is(':checked')) {
+					var mykeyword = $('#keyword').val();
+					var mycategory = $('#category').val();
+					var mydistance = $('#distance').val();
+					var myunit = $('#unit').val();
+					var mylat = $('#currentLat').val();
+					var mylon = $('#currentLon').val();
+					searchBylocation({
+						mykeyword,
+						mycategory,
+						mydistance,
+						myunit,
+						mylat,
+						mylon
+					}, showResultList);
+				} else{
+					var myaddr = $('.checkValidation2').val();
+					getGeoLoc(myaddr);
+				}
+			});
+
+			function getGeoLoc(myaddr){
+				$.ajax({
+				url: "/googleMap",
+				dateType: "json",
+				data: {
+					addr: myaddr
+					},
+				method: "GET",
+    			}).done(function(data){
+    				if (data.status == "ZERO_RESULTS") {
+    					alert("Input Address error");
+    				} else {
+    					console.log(data);
+    					var mylat = data.results[0].geometry.location.lat;
+    					var mylon = data.results[0].geometry.location.lng;
+    					console.log(mylat, mylon);
+    					var mykeyword = $('#keyword').val();
+						var mycategory = $('#category').val();
+						var mydistance = $('#distance').val();
+						var myunit = $('#unit').val();
+						searchBylocation({
+							mykeyword,
+							mycategory,
+							mydistance,
+							myunit,
+							mylat,
+							mylon
+						}, showResultList);
+    				}
+    			}).fail(function(){
+    				console.log("Failed to get Address");
+    			})
+			}
+
+			function searchBylocation({
+				mykeyword,
+				mycategory,
+				mydistance,
+				myunit,
+				mylat,
+				mylon
+			}, callback){
+				$.ajax({
+				url: "/ticketMaster/getEvents",
+				dateType: "json",
+				data: {
+					keyword: mykeyword,
+					category: mycategory,
+					distance: mydistance,
+					unit: myunit,
+					lat: mylat,
+					lon: mylon
+					},
+				method: "GET",
+    			}).done(function(data){
+    				$('#progressBar').css({
+					display: "none"
+					});
+    				callback(data);
+    			}).fail(function(){
+    				$('#error').css({
+    					display: 'none',
+    				});
+    			});
+			}
+
+			function showResultList(data){
+
+				$('#resultTable').css({
+					display: 'block',
+				});
+
+				$('#detailBtn').css({
+					display: 'block'
+				});
+
+				$('#noResultList').css({
+					display: 'none'
+				});
+				$('#resultList').css({
+					display: 'block'
+				});
+				if (data._embedded == undefined) {
+					$('#noResultList').css({
+						display: 'block'
+					});
+					$('#resultList').css({
+					display: 'none'
+				});
+
+				} else {
+					var tbody = document.getElementById("resultListBody");
+					tbody.innerHTML = "";
+					var favorObj = JSON.parse(localStorage.getItem("favoriteList"));
+					var events = data._embedded.events;
+					events.sort(function(a, b){
+						var str1 = a.dates.start.localDate.toString();
+						var str2 = b.dates.start.localDate.toString();
+						return str1.localeCompare(str2);
+					});
+
+					for(var i = 0; i < events.length; i++){
+						var strParams = "";
+						var trow = document.createElement("tr");
+						trow.setAttribute("eventId", events[i].id);
+						strParams += events[i].id + "@";
+						var number = document.createElement("td");
+						number.innerText = i + 1;
+						var date = document.createElement("td");
+						date.innerText = events[i].dates.start.localDate;
+						strParams += events[i].dates.start.localDate + "@";
+
+						var event = document.createElement("td");
+						var a_event = document.createElement("a");
+						a_event.href = "#";
+						a_event.classList.add("getDetail");
+						event.appendChild(a_event);
+						a_event.setAttribute("eventId", events[i].id);
+
+						var trunStr = truncateStr(events[i].name);
+						a_event.innerText = trunStr;
+						a_event.setAttribute("data-toggle", "tooltip");
+						a_event.setAttribute("data-placement", "bottom");
+						a_event.setAttribute("title", events[i].name);
+
+						strParams += events[i].name + "@";
+						var category = document.createElement("td");
+						if (events[i].classifications[0].genre != undefined && events[i].classifications[0].segment != undefined) {
+							if (events[i].classifications[0].genre != undefined && events[i].classifications[0].segment) {
+								category.innerText = events[i].classifications[0].genre.name + "-" + events[i].classifications[0].segment.name;
+								a_event.setAttribute("category", events[i].classifications[0].segment.name);
+								strParams += events[i].classifications[0].genre.name + "-" + events[i].classifications[0].segment.name;
+							} else if (events[i].classifications[0].genre != undefined) {
+								category.innerText = events[i].classifications[0].genre.name;
+								a_event.setAttribute("category", events[i].classifications[0].genre.name);
+								strParams += events[i].classifications[0].genre.name;
+							}
+						} else if (events[i].classifications[0].segment != undefined) {
+							category.innerText = events[i].classifications[0].segment.name;
+							a_event.setAttribute("category", events[i].classifications[0].segment.name);
+							strParams += events[i].classifications[0].segment.name;
+						} else {
+							category.innerText = "";
+							a_event.setAttribute("category", "");
+						}
+						var vneueInfo = document.createElement("td");
+						if (events[i]._embedded != undefined) {
+							vneueInfo.innerText = events[i]._embedded.venues[0].name;
+							strParams += "@" + events[i]._embedded.venues[0].name;
+						} else {
+							vneueInfo.innerText.innerText = "";
+						}
+						var favorite = document.createElement("td");
+						var btn = document.createElement("button");
+						favorite.appendChild(btn);
+						btn.setAttribute("id", events[i].id);
+						if (favorObj[events[i].id] == undefined) {
+							flag = false;
+							btn.innerText = "☆";
+							btn.setAttribute("flag", flag);
+						} else {
+							console.log("In favorite list");
+							flag = true;
+							btn.innerText = "★";
+							btn.setAttribute("flag", flag);
+						}
+						btn.setAttribute("eventId", events[i].id);
+						btn.setAttribute("info", strParams);
+						btn.onclick = function(){
+							addToFavoriteList(this);
+						}
+						trow.appendChild(number);
+						trow.appendChild(date);
+						trow.appendChild(event);
+						trow.appendChild(category);
+						trow.appendChild(vneueInfo);
+						trow.appendChild(favorite);
+						tbody.appendChild(trow);
+					}
+				}
+			}
+
+			function truncateStr(str){
+				if (str.length > 35) {
+					str = str.substring(0, 35);
+					for(var i = 34; i > 0; i--){
+						if (str.charAt(i) == " ") {
+							str = str.substring(0, i);
+							break;
+						}
+					}
+					str += "...";
+					return str;
+				} else {
+					return str;
+				}
+			}
+
+			$('#btn-inDetail').click(function(event) {
+				var btn = document.getElementById("btn-inDetail");
+				var obj = JSON.parse(localStorage.getItem("favoriteList"));
+				var keys = Object.keys[obj];
+				var id = btn.getAttribute("eventId");
+				if (btn.getAttribute("flag") == "true") {
+					delete obj[id];	
+					btn.setAttribute("flag", false);
+					btn.innerText = "☆";
+					localStorage.setItem("favoriteList", JSON.stringify(obj));
+				} else {
+					btn.setAttribute("flag", true);
+					btn.innerText = "★";
+					var eventBtn = document.getElementById(id);
+					var str = eventBtn.getAttribute("info");
+					obj[id] = str;
+					localStorage.setItem("favoriteList", JSON.stringify(obj));
+				}
+			});
+
+			function addToFavoriteList(cell){
+				var flag = cell.getAttribute("flag");
+				var id = cell.getAttribute("id");
+				var str = cell.getAttribute("info");
+				var obj = JSON.parse(localStorage.getItem("favoriteList"));
+				//in favorite list, delete it;
+				if (flag == "true") {
+					cell.innerText = "☆";
+					cell.setAttribute("flag", false);
+					delete obj[id];
+					localStorage.setItem("favoriteList", JSON.stringify(obj));
+				} else {
+					cell.innerText = "★";
+					cell.setAttribute("flag", true);
+					obj[id] = str;
+					localStorage.setItem("favoriteList", JSON.stringify(obj));
+				}
+			}
+
+			$(document).on('click', '.getDetail', function (event) {
+				event.preventDefault();
+				var event = document.getElementById("eventDetailTable"); 
+				event.innerHTML = "";
+				var photo = document.getElementById("artistPhotoTable");
+				photo.innerHTML = "";
+				var venue = document.getElementById("venueTable");
+				venue.innerHTML = "";
+				var up = document.getElementById("upComingTable");
+				up.innerHTML = "";
+				getDetail($(this));
+			});
+
+			function getDetail(obj) {
+				$('#resultList').css({
+					display: 'none'
+				});
+
+				$('#detailInfo').css({
+					display: 'block'
+				});
+
+				$('#detailBtn').prop({
+					"disabled": false
+				});
+
+				$('#resultListBody tr').css({
+					"background-color": "white"
+				});
+
+				obj[0].parentNode.parentNode.style.backgroundColor = "orange";
+
+
+				var myeventId = obj[0].attributes[2].nodeValue;
+				var mycategory = obj[0].attributes[6].nodeValue;
+				console.log(mycategory);
+				var favorObj = JSON.parse(localStorage.getItem("favoriteList"));
+				var keys = Object.keys(favorObj);
+				var btn = document.getElementById("btn-inDetail");
+				btn.setAttribute("eventId", myeventId);
+				if (keys.includes(btn.getAttribute("eventId"))) {
+					btn.setAttribute("flag", true);
+					btn.innerText = "★";
+				} else {
+					btn.setAttribute("flag", false);
+					btn.innerText = "☆";
+				}
+				// keys.includes(btn.getAttribute("id"))
+				$.ajax({
+				url: "/ticketMaster/getDetail",
+				dateType: "json",
+				data: {
+					eventId: myeventId
+					},
+				method: "GET",
+    			}).done(function(data){
+    				console.log(data);
+    				var title = document.getElementsByClassName("detailTiTle")[0];
+    				title.innerText = data.name;
+    				var twitter = document.getElementById("twitterBtn");
+    				console.log(twitter);
+    				var hrefstr = "https://twitter.com/intent/tweet?text=Check%20out%20";
+    				hrefstr += data.name;
+
+    				if (data._embedded != undefined) {
+    					if (data._embedded.attractions != undefined) {
+    						if (mycategory == "Music") {
+    							getAtrists(data._embedded.attractions);
+    						} else {
+    							getPhotosOfTeam(data._embedded.attractions);
+    						}
+    					} else {
+    						$('.noArtists').css({
+    							"display": 'block',
+    						});
+    					}
+    					if (data._embedded.venues != undefined) {
+    						getVenue(data._embedded.venues[0].name);
+    						getUpcomingEvents(data._embedded.venues[0].name);
+    					} else {
+							$('.noArtists').css({
+    							"display": 'block',
+    						});
+    					}
+
+    				} else {
+    					$('.noArtists').css({
+    						"display": 'block',
+    					});
+    					$('.noVenue').css({
+    						"display": 'block',
+    					});
+    					$('.noUpcomingEvents').css({
+    						"display": 'block',
+    					});
+    					$('#eventsOrder').css({
+    						"display": 'none',
+    					});
+    					$('#eventsType').css({
+    						"display": 'none',
+    					});
+
+    				}
+    				hrefstr += " located%20at%20";
+    				hrefstr += data._embedded.venues[0].name;
+    				hrefstr += ".%20Website:%20";
+    				hrefstr += data.url;
+    				hrefstr += " %23CSCI571EventSearch";
+    				twitter.href = hrefstr;
+    				showDetailList(data);
+    			}).fail(function(){
+    				console.log("Failed to get Details");
+    			})
+			}
+
+			function showDetailList(data){
+				var table = document.getElementById("eventDetailTable");
+				if ("_embedded" in data && "attractions" in data._embedded && data._embedded.attractions.length > 0) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Artist / Team(s)";
+					tr.appendChild(th);
+					var string = "";
+					var td = document.createElement("td");
+					if (data._embedded.attractions.length == 1) {
+						string += data._embedded.attractions[0].name;
+					} else {
+						for(var i = 0; i < data._embedded.attractions.length; i++){
+							string += data._embedded.attractions[i].name + " | ";
+							if (i == data._embedded.attractions.length - 1) {
+								string += data._embedded.attractions[i].name;
+							}
+						}
+					}
+					td.innerText = string;
+					tr.appendChild(td);
+				}
+
+				if ("_embedded" in data && "venues" in data._embedded) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "venues";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					td.innerText = data._embedded.venues[0].name;
+					tr.appendChild(td);
+				}
+
+				if ("dates" in data && "start" in data.dates) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Time";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					var str = "";
+					if ("localDate" in data.dates.start && "localTime" in data.dates.start) {
+						var mydate = new Date(data.dates.start.localDate);
+						const monthNames = ["Jan", "Feb", "Mar", "April", "May", "June",
+							"July", "Aug", "Sep", "Oct", "Nov", "Dec"];
+						str = monthNames[mydate.getMonth()] + " " + mydate.getDay() + ", " + data.dates.start.localDate.substring(0, 4);
+						str += " " + data.dates.start.localTime;
+					} else if ("localTime" in data.dates.start) {
+						str += data.dates.start.localTime;
+					} else {
+						var mydate = new Date(data.dates.start.localDate);
+						const monthNames = ["Jan", "Feb", "Mar", "April", "May", "June",
+							"July", "Aug", "Sep", "Oct", "Nov", "Dec"];
+						str = monthNames[mydate.getMonth()] + " " + mydate.getDay() + ", " + mydate.getYear();
+					}
+					td.innerText = str;
+					tr.appendChild(td);
+				}
+
+				if ("classifications" in data) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Category";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					var flag = false;
+					var temp = data.classifications;
+					for(var i = 0; i < temp.length; i++) {
+						if ("subGenre" in temp[i]) {
+							if (flag) {
+								var span1 = document.createElement("span");
+								span1.innerText = " | ";
+								td.appendChild(span1);
+							}	
+							flag = true;
+							var span = document.createElement("span");
+							span.innerText = temp[i].subGenre.name;
+							td.appendChild(span);
+						}
+						if ("genre" in temp[i]) {
+							if (flag) {
+								var span1 = document.createElement("span");
+								span1.innerText = " | ";
+								td.appendChild(span1);
+							}	
+							flag = true;
+							var span = document.createElement("span");
+							span.innerText = temp[i].genre.name;
+							td.appendChild(span);
+						}
+						if ("segment" in temp[i]) {
+							if (flag) {
+								var span1 = document.createElement("span");
+								span1.innerText = " | ";
+								td.appendChild(span1);
+							}	
+							flag = true;
+							var span = document.createElement("span");
+							span.innerText = temp[i].segment.name;
+							td.appendChild(span);
+						}
+						if ("subType" in temp[i]) {
+							if (flag) {
+								var span1 = document.createElement("span");
+								span1.innerText = " | ";
+								td.appendChild(span1);
+							}	
+							flag = true;
+							var span = document.createElement("span");
+							span.innerText = temp[i].subType.name;
+							td.appendChild(span);
+						}
+						if ("type" in temp[i]) {
+							if (flag) {
+								var span1 = document.createElement("span");
+								span1.innerText = " | ";
+								td.appendChild(span1);
+							}	
+							flag = true;
+							var span = document.createElement("span");
+							span.innerText = temp[i].type.name;
+							td.appendChild(span);
+						}
+					}
+					tr.appendChild(td);
+				}
+
+				if ("priceRanges" in data) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Price Range";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					var str = "";
+					if ("max" in data.priceRanges[0] && "min" in data.priceRanges[0]) {
+						str += "$" + data.priceRanges[0].min + " ~ $" + data.priceRanges[0].max;
+					} else if ("max" in data.priceRanges[0]) {
+						str += "$" + data.priceRanges[0].max;
+					} else {
+						str += "$" + data.priceRanges[0].min;
+					}
+					td.innerText = str;
+					tr.appendChild(td);
+				}
+
+				if ("dates" in data && "status" in data.dates) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Ticket Status";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					td.innerText = data.dates.status.code;
+					tr.appendChild(td);
+				}
+
+				if ("url" in data) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Buy Ticket At";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					var anchor = document.createElement("a");
+					td.appendChild(anchor);
+					anchor.innerText = "Ticketmaster";
+					anchor.target = "_blank";
+					anchor.href = data.url;
+					tr.appendChild(td);
+				}
+
+				if ("seatmap" in data) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Seat Map";
+					tr.appendChild(th);
+
+					var td = document.createElement("td");
+					var anchor = document.createElement("a");
+					td.appendChild(anchor);
+					var seatDiv = document.createElement("div");
+					seatDiv.classList.add("modal");
+					seatDiv.id = "seatmapdivid";
+					td.appendChild(seatDiv);
+					var img = document.createElement("img");
+					seatDiv.appendChild(img);
+					img.src = data.seatmap.staticUrl;
+					anchor.innerText = "View Seat Map here";
+					anchor.href = "#seatmapdivid";
+					anchor.setAttribute("rel", "modal:open");
+					td.appendChild(anchor);
+					tr.appendChild(td);
+				}
+			}
+
+			function getAtrists(artists){
+				var list = [];
+				for(var i = 0; i < artists.length; i++) {
+					var name = artists[i].name;
+					var obj = parseAndShow(name, showArtistsTable);
+				}
+			}
+
+			function parseAndShow(name, callback) {
+				$.ajax({
+    				url: "/spotify",
+    				dateType: "json",
+    				data: {
+    					artistName: name
+  					},
+    				method: "GET",
+    			}).done(function(data){
+    				var artistslist = data.artists.items;
+    				var exactObj;
+    				for(var j = 0; j<artistslist.length; j++){
+    					if (artistslist[j].name.toUpperCase() == name.toUpperCase()) {
+    						exactObj = artistslist[j];
+    						break;
+    					}
+    				}
+    				callback(exactObj);
+    			}).fail(function(){
+    				console.log("Failed to get artistInfo");
+    			})
+			}
+
+			function showArtistsTable(artistInfo) {
+				var keyword = artistInfo.name;
+				var bigDiv = document.getElementById("artistPhotoTable");
+				var div = document.createElement("div");
+				var id = artistInfo.id;
+				div.setAttribute("id", artistInfo.id);
+				bigDiv.appendChild(div);
+				var table = document.createElement("table");
+				table.id = "ArtistsTable";
+				div.appendChild(table);
+
+				if ("name" in artistInfo) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					tr.appendChild(th);
+					th.innerText = "Name";
+					var td = document.createElement("td");
+					tr.appendChild(td);
+					td.innerText = artistInfo.name;
+				}
+
+				if ("followers" in artistInfo) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					tr.appendChild(th);
+					th.innerText = "Followers";
+					var td = document.createElement("td");
+					tr.appendChild(td);
+					td.innerText = artistInfo.followers.total;	
+				}
+
+				if ("popularity" in artistInfo) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					tr.appendChild(th);
+					th.innerText = "Popularity";
+					var td = document.createElement("td");
+					tr.appendChild(td);
+					td.innerText = artistInfo.popularity;
+				}
+
+				function setAttributes(el, attrs) {
+				  for(var key in attrs) {
+				    el.setAttribute(key, attrs[key]);
+				  }
+				} 
+
+				if ("uri" in artistInfo) {
+					var tr = document.createElement("tr");
+					table.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					tr.appendChild(th);
+					th.innerText = "Check At";
+					var td = document.createElement("td");
+					tr.appendChild(td);
+					var anchor = document.createElement("a");
+					td.appendChild(anchor);
+					anchor.innerText = "Spotify";
+					var words = artistInfo.uri.split(":");
+					var str = "https://open." + words[0] + ".com/" + words[1] + "/" + words[2];
+					anchor.href = str;
+					anchor.target = "_blank";
+				}
+				getPhotosOfArtists(keyword, id, showPhotos)
+			}
+
+			function getPhotosOfArtists(mykeyword, id, callback){
+				// console.log("in",mykeyword, id);
+				$.ajax({
+				url: "/googlePhoto",
+				dateType: "json",
+				data: {
+					keyword: mykeyword
+					},
+				method: "GET",
+    			}).done(function(data){
+    				var pictures = data.items;
+    				callback(pictures, id);
+    			}).fail(function(){
+    				console.log("Failed to get Events");
+    			})
+			}
+
+			function showPhotos(data, id){
+				console.log(data);
+				var div = document.getElementById(id);
+				var photoDiv = document.createElement("div");
+				div.appendChild(photoDiv);
+				var ul = document.createElement("ul");
+				photoDiv.appendChild(ul);
+				for(var i = 0; i < data.length; i++){
+					var li = document.createElement("li");
+					ul.appendChild(li);
+					var anchor = document.createElement("a");
+					anchor.href = data[i].link;
+					anchor.target = "_blank";
+					li.appendChild(anchor);
+					var img = document.createElement("img");
+					img.src = data[i].link;
+					anchor.appendChild(img);
+				}
+			}
+
+			function getPhotosOfTeam(teams){
+				for(var i = 0; i < teams.length; i++){
+					var mykeyword = teams[i].name;
+					parseAndShowTeams(mykeyword);
+				}
+			}
+
+			function parseAndShowTeams(name) {
+				$.ajax({
+    				url: "/googlePhoto",
+    				dateType: "json",
+    				data: {
+    					keyword: name
+  					},
+    				method: "GET",
+	    			}).done(function(data){
+	    				var pictures = data.items;
+	    				showPhotosOfTeams(name, pictures);
+	    			}).fail(function(){
+	    				console.log("Failed to get Events");
+	    			})
+			}
+
+			function showPhotosOfTeams(name, data){
+				var bigDiv = document.getElementById("artistPhotoTable");
+				var div = document.createElement("div");
+				bigDiv.appendChild(div);
+				var p = document.createElement("p");
+				div.appendChild(p);
+				p.innerText = name;
+				var ul = document.createElement("ul");
+				div.appendChild(ul);
+				for(var i = 0; i < data.length; i++){
+					var li = document.createElement("li");
+					ul.appendChild(li);
+					var anchor = document.createElement("a");
+					anchor.href = data[i].link;
+					anchor.target = "_blank";
+					li.appendChild(anchor);
+					var img = document.createElement("img");
+					img.src = data[i].link;
+					anchor.appendChild(img);
+				}
+			}
+
+			function getVenue(myvenueName){
+				$.ajax({
+				url: "/ticketMaster/getVenue",
+				dateType: "json",
+				data: {
+					veneuName: myvenueName
+					},
+				method: "GET",
+    			}).done(function(data){
+    				if (data._embedded == undefined) {
+    					$('.noVenue').css({
+    						"display": 'block',
+    					});
+    				} else {
+    					var venueInfo = data._embedded.venues[0];
+    					showVenueTable(venueInfo);
+    				}
+    			}).fail(function(){
+    				console.log("Failed to get Venues");
+    			})
+			}
+
+			function showVenueTable(data){
+				console.log(data);
+				var p = document.getElementById("venueName");
+				p.innerText = data.name;
+				var tbody = document.getElementById("venueTable");
+				if ("address" in data) {
+					var tr = document.createElement("tr");
+					tbody.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Address";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					td.innerText = data.address.line1;
+					tr.appendChild(td);
+				}
+
+				if ("city" in data && "state" in data) {
+					var tr = document.createElement("tr");
+					tbody.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "City";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					td.innerText = data.city.name + "," + data.state.name;
+					tr.appendChild(td);
+				}
+
+				if ("boxOfficeInfo" in data && "phoneNumberDetail" in data.boxOfficeInfo) {
+					var tr = document.createElement("tr");
+					tbody.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Phone Number";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					td.innerText = data.boxOfficeInfo.phoneNumberDetail;
+					tr.appendChild(td);
+				}
+
+				if ("boxOfficeInfo" in data && "openHoursDetail" in data.boxOfficeInfo) {
+					var tr = document.createElement("tr");
+					tbody.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Open Hours";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					td.innerText = data.boxOfficeInfo.openHoursDetail;
+					tr.appendChild(td);
+				}
+
+				if ("generalInfo" in data && "generalRule" in data.generalInfo) {
+					var tr = document.createElement("tr");
+					tbody.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "General Rule";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					td.innerText = data.generalInfo.generalRule;
+					tr.appendChild(td);
+				}
+
+				if ("generalInfo" in data && "childRule" in data.generalInfo) {
+					var tr = document.createElement("tr");
+					tbody.appendChild(tr);
+					var th = document.createElement("th");
+					th.setAttribute("scope", "row");
+					th.innerText = "Child Rule";
+					tr.appendChild(th);
+					var td = document.createElement("td");
+					td.innerText = data.generalInfo.childRule;
+					tr.appendChild(td);
+				}
+
+				var bigDiv = document.getElementById("googleMapDiv");
+				var mapdiv = document.createElement("div");
+				mapdiv.id = data.id;
+				mapdiv.style = "height: 500px";
+				bigDiv.appendChild(mapdiv);
+				console.log(data.id);
+				initMap(data.id, data.location.latitude, data.location.longitude, true);
+			}
+
+			function initMap(venue_id, venuelat, venuelon, flag){
+				var directionsService = new google.maps.DirectionsService();
+	  			var directionsDisplay = new google.maps.DirectionsRenderer();
+
+	  			var venue_position = new google.maps.LatLng(venuelat, venuelon);
+	  			console.log(venuelat, venuelon);
+	  			if(flag) {
+	  				var map = new google.maps.Map(document.getElementById(venue_id), {
+	                    zoom: 15,
+	                    center: venue_position,
+	                });
+	  			} else {
+	  				console.log(venue_id);
+	  				var map = new google.maps.Map(
+	      					document.getElementById(venue_id), {zoom: 15, center: venue_position,mapTypeControl: true,
+	          				mapTypeControlOptions: {
+	            			style: google.maps.MapTypeControlStyle.DEFAULT,
+	            			position: google.maps.ControlPosition.LEFT_TOP,
+	            			mapTypeIds: ['satellite']
+	          			}
+	          		});
+	  			}
+	 
+	  			var marker = new google.maps.Marker(
+	  				{
+	  					position: venue_position,
+	  					map:map
+	  				}
+	  			);
+	  			directionsDisplay.setMap(map);
+			}
+
+			function getUpcomingEvents(myvenueName) {
+				$.ajax({
+				url: "/songkick",
+				dateType: "json",
+				data: {
+					venueName: myvenueName
+					},
+				method: "GET",
+    			}).done(function(data){
+    				if (data.resultsPage == undefined || data.resultsPage.results == undefined || data.resultsPage.results.event == undefined) {
+    					$('.noUpcomingEvents').css({
+    						display: "block"
+    					});
+    					$('#eventsOrder').css({
+    						"display": 'none',
+    					});
+    					$('#eventsType').css({
+    						"display": 'none',
+    					});
+
+    				} else {
+    					var events = data.resultsPage.results.event;
+    					showUpcomingEvents(events);
+    				}
+    			}).fail(function(){
+    				console.log("Failed to get Events");
+    			})
+			}
+
+			function showUpcomingEvents(data){
+				console.log(data);
+				var bigDiv = document.getElementById('upComingTable');
+
+				for(var i = 0; i<data.length; i++){
+					var card = document.createElement("div");
+					card.classList.add("card");
+					bigDiv.appendChild(card);
+					var card_body = document.createElement("div");
+					card_body.classList.add("card-body");
+					card.appendChild(card_body);
+					var ul = document.createElement("ul");
+					ul.style = "list-style:none";
+					card_body.appendChild(ul);
+					if ("displayName" in data[i]) {
+						var li = document.createElement("li");
+						ul.appendChild(li);
+						var anchor = document.createElement("a");
+						li.appendChild(anchor);
+						anchor.innerText = data[i].displayName;
+						anchor.href = data[i].uri;
+						anchor.target = "_blank";
+						card.setAttribute("name", data[i].displayName);
+					}
+
+					if ("performance" in data[i] && data[i].performance.length > 0 && "artist" in data[i].performance[0] && "start" in data[i] && "date" in data[i].start) {
+						var li = document.createElement("li");
+						ul.appendChild(li);
+						var span1 = document.createElement("span");
+						li.appendChild(span1);
+						span1.innerText = "Artist: " + data[i].performance[0].artist.displayName;
+						span1.style.color = "red";
+						var span2 = document.createElement("span");
+						span2.style.color = "grey";
+						li.appendChild(span2);
+						var str = "";
+						var mydate = new Date(data[i].start.date);
+						const monthNames = ["Jan", "Feb", "Mar", "April", "May", "June",
+							"July", "Aug", "Sep", "Oct", "Nov", "Dec"];
+							str = " " + monthNames[mydate.getMonth()] + " " + data[i].start.date.substring(5, 7) + ", ";
+							str += data[i].start.date.substring(0, 4);
+							if ("start" in data[i] && "time" in data[i].start && data[i].start.time != null) {
+								str += " " + data[i].start.time;
+							}
+							span2.innerText = str;
+							card.setAttribute("artist", data[i].performance[0].artist.displayName);
+							card.setAttribute("time", data[i].start.date)
+					} else if ("performance" in data[i] && data[i].performance.length > 0 && "artist" in data[i].performance[0]) {
+						var li = document.createElement("li");
+						ul.appendChild(li);
+						var span1 = document.createElement("span");
+						li.appendChild(span1);
+						span1.innerText = data[i].performance[0].artist.displayName;
+						card.setAttribute("artist", data[i].performance[0].artist.displayName);
+						card.setAttribute("time", "");
+					}
+
+					if ("type" in data[i]) {
+					var li = document.createElement("li");
+					ul.appendChild(li);
+					li.innerText = "Type:" + data[i].type;
+					card.setAttribute("type", data[i].type);
+					} else {
+						card.setAttribute("type", "");
+					}
+				}
+
+				$('#eventsOrder').css({
+					"display": 'block',
+				});
+
+				$('#eventsType').css({
+					"display": 'block',
+				});
+
+				$('.noUpcomingEvents').css({
+					"display": 'none',
+				});
+			}
+
+			$('#eventsType').change(function(){
+				var type = $( "#eventsType option:selected" ).val();
+				var order = $( "#eventsOrder option:selected" ).val();
+				if (type != "defalut") {
+					$( "#eventsOrder" ).prop({
+						"disabled": false
+					});
+					$( "#eventsOrder" ).css({
+						"background-color": "white"
+					});
+					var order = $( "#eventsOrder option:selected" ).val();
+					sortUpcomingList(type, order);
+				} else {
+					$( "#eventsOrder" ).prop({
+						"disabled": true
+					});
+					$( "#eventsOrder" ).css({
+						"background-color": "lightgrey"
+					});
+				}
+			})
+
+			$('#eventsOrder').change(function(event) {
+				var type = $( "#eventsType option:selected" ).val();
+				var order = $( "#eventsOrder option:selected" ).val();
+				sortUpcomingList(type, order);
+			});
+
+			function sortUpcomingList(type, order) {
+				var obj = $('#upComingTable').children();
+				console.log(obj[0]);
+				console.log(obj.length);
+				var bigDiv = document.getElementById("upComingTable");
+				bigDiv.innerHTML = "";
+
+				obj.sort(function(a, b){
+					var name1 = a.getAttribute(type).toString();
+					var name2 = b.getAttribute(type).toString();
+					if (order == "descending") {
+						return name2.localeCompare(name1);
+					}
+					return name1.localeCompare(name2)
+				});
+
+				for(var i = 0; i < obj.length; i++){
+					bigDiv.appendChild(obj[i]);
+				}
+			}
+
+			$('#resutlBtn').click(function(event) {
+				var obj = document.getElementById("resultListBody");
+				var favor = document.getElementById("favoriteDiv")
+				if (obj.style.display == "" && favor.style.display == "none") {
+					return;
+				}
+				var htmlstring = obj.innerHTML;
+				htmlstring = (htmlstring.trim) ? htmlstring.trim() : htmlstring.replace(/^\s+/,'');
+				if (htmlstring == "") {
+					$('#detailBtn').css({
+						display: 'none'
+					});
+				} else {
+					$('#detailBtn').css({
+						display: 'block'
+					});
+				}
+
+				$('#resultList').css({
+					display: 'block'
+				});
+
+				$('#detailInfo').css({
+					display: 'none'
+				});
+
+				$("#resutlBtn").toggleClass('btn-primary btn-default');
+				$('#favoritesBtn').toggleClass('btn-default btn-primary');
+				$('#resultDiv').css({
+					"display": 'block'
+				})
+				$('#favoriteDiv').css({
+					"display": 'none'
+				});
+				checkInFavor();
+			});
+
+			function checkInFavor(){
+				var favorObj = JSON.parse(localStorage.getItem("favoriteList"));
+				var keys = Object.keys(favorObj);
+				var bigDiv = $('#resultListBody').children();
+				if (bigDiv.length > 0) {
+					for(var i = 0; i < bigDiv.length; i++){
+						var eventId = bigDiv[i].getAttribute("eventId");
+						var btn = bigDiv[i].childNodes[5].childNodes[0];
+						if (!keys.includes(btn.getAttribute("id"))) {
+							btn.setAttribute("flag", false);
+							btn.innerText = "☆";
+						} else {
+							btn.setAttribute("flag", true);
+							btn.innerText = "★";
+						}
+					}
+				}
+			}
+
+			$('#favoritesBtn').click(function(event) {
+				$('#detailBtn').css({
+					"display": 'none'
+				});
+				$("#resutlBtn").toggleClass('btn-default btn-primary');
+				$('#favoritesBtn').toggleClass('btn-primary btn-default');
+				$('#resultDiv').css({
+					"display": 'none'
+				})
+				$('#favoriteDiv').css({
+					"display": 'block'
+				});
+				$('#resultList').css({
+					display: 'block'
+				});
+
+				$('#detailInfo').css({
+					display: 'none'
+				});
+				var bigDiv = document.getElementById("favorListBody");
+				bigDiv.innerHTML = "";
+				var favorObj = JSON.parse(localStorage.getItem("favoriteList"));
+				var entries = Object.entries(favorObj);
+				for(var i = 0; i < entries.length; i++){
+					var params = entries[i][1].split("@");
+					var trId = params[0] + "-";
+					var trObj = document.getElementById(trId);
+					if (null != trObj) {
+						continue;
+					}
+					var tr = document.createElement("tr");
+					bigDiv.appendChild(tr);
+					tr.id = params[0] + "-";
+
+					var td_number = document.createElement("td");
+					td_number.innerText = i;
+					tr.appendChild(td_number);
+
+					var td_date = document.createElement("td");
+					td_date.innerText = params[1];
+					tr.appendChild(td_date);
+
+					var td_link = document.createElement("td");
+					tr.appendChild(td_link);
+					var anchor = document.createElement("a");
+					td_link.appendChild(anchor);
+					anchor.href = "#";
+					anchor.innerText = params[2];
+					anchor.classList.add("getDetail");
+					anchor.setAttribute("eventId", params[0]);
+					anchor.setAttribute("category", params[3].split("-")[1]);
+
+					var td_cate = document.createElement("td");
+					tr.appendChild(td_cate);
+					td_cate.innerText = params[3];
+
+					var td_venue = document.createElement("td");
+					tr.appendChild(td_venue);
+					td_venue.innerText = params[4];
+
+					var td_button = document.createElement("td");
+					tr.appendChild(td_button);
+					var btn_del = document.createElement("button");
+					td_button.appendChild(btn_del);
+					btn_del.setAttribute("eventId", params[0]);
+					btn_del.innerText = "remove";
+					btn_del.onclick = function(){
+						removeFromFavorite(this);
+					}
+				}
+
+				if (bigDiv.innerHTML != "") {
+					$('#noFavorite').css({
+						"display": 'none'
+					})
+					$('#FavoriteTable').css({
+						"display": 'block'
+					})
+				} else {
+					$('#noFavorite').css({
+						"display": 'block'
+					})
+					$('#FavoriteTable').css({
+						"display": 'none'
+					})
+				}
+				// noFavorite
+				/* Act on the event */
+			});
+
+			function removeFromFavorite(cell) {
+				var id = cell.getAttribute("eventId");
+				var trId = cell.getAttribute("eventId") + "-";
+				var favorObj = JSON.parse(localStorage.getItem("favoriteList"));
+				delete favorObj[id];
+				localStorage.setItem("favoriteList", JSON.stringify(favorObj));
+				document.getElementById(trId).remove();
+
+				if (document.getElementById("favorListBody").innerHTML != "") {
+					$('#noFavorite').css({
+						"display": 'none'
+					})
+				} else {
+					$('#noFavorite').css({
+						"display": 'block'
+					})
+				}
+			}
+
+			$('#detailBtn').click(function(event) {
+				$('#resultList').css({
+					display: 'none'
+				});
+
+				$('#detailInfo').css({
+					display: 'block'
+				});
+			});
+
+			$('#returnToEvents').click(function(event) {
+				$('#resultList').css({
+					display: 'block'
+				});
+
+				$('#detailInfo').css({
+					display: 'none'
+				});
+				checkInFavor();	
+			});
+
+			$('#clearBtn').click(function(event) {
+				$('#detailBtn').css({
+					"display": "none"
+				});
+				$('#resultTable').css({
+					"display": 'none',
+				});
+				$('#detailInfo').css({
+					display: 'none'
+				});
+				var resultPages = document.getElementById("resultListBody");
+				resultPages.innerHTML = "";
+				var event = document.getElementById("eventDetailTable"); 
+				event.innerHTML = "";
+				var photo = document.getElementById("artistPhotoTable");
+				photo.innerHTML = "";
+				var venue = document.getElementById("venueTable");
+				venue.innerHTML = "";
+				var up = document.getElementById("upComingTable");
+				up.innerHTML = "";
+
+				document.getElementById("keyword").value = "";
+				document.getElementById("category").selectedIndex = 0;
+				document.getElementById("distance").value = 10;
+				document.getElementById("unit").selectedIndex = 0;
+				document.getElementById("radioBtn1").checked = "checked";
+				document.getElementById("textForLoc").value = "";
+				document.getElementById("textForLoc").disabled = true;
+				document.getElementById("searchBtn").disabled = true;
+				document.getElementById("googleMapDiv").innerHTML = "";
+				document.getElementById("noVenueID").style.display = "none";
+				document.getElementById("noResultList").style.display = "none";
+			});
+	});
+	
+	</script>
+	<script async defer
+    	src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOqitb3kNnSBiFjZzL1421-rqeUipgO-I">
+    </script>
+	<style>
+		.content { 
+			padding: 1rem; 
+		}
+		.searchFormDiv { 
+			position: relative;
+	    	padding: 1em;
+	    	background-color: #ececec;
+	    	border-width: 2px;
+	    	border-radius: 10px;
+	    	margin: 50px 130px;
+	    	width: 1120px;
+	    	border: 1px solid #d4d4d4;
+	    	margin: 30px auto;
+		}
+		.list {
+			list-style: none;
+		}
+
+		.no-close .ui-dialog-titlebar-close {
+	  		display: none;
+		}
+
+		.ui-dialog .ui-dialog-titlebar-close {
+	    	position: absolute;
+	    	right: 0;
+		}
+
+		.resultTableCss, .resultTableCss{
+			margin: 0 auto;
+			width: 1120px;
+		}
+
+		#resultListBody tr:hover{
+			background-color: lightgrey;
+			border-top: 1px;
+			border-bottom: 1px;
+		}
+
+		#resultListBody tr{
+			border-top: 1px solid lightgrey;
+			border-bottom: 1px solid lightgrey;
+			height: 55px;
+		}
+
+		#favorListBody tr, #eventDetailTable tr, #venueTable tr, #ArtistsTable tr{
+			border-top: 1px solid lightgrey;
+			border-bottom: 1px solid lightgrey;
+			height: 55px;
+			width: 1120px;
+		}
+
+		#favorListBody tr:hover {
+			background-color: lightgrey;
+			border-top: 1px grey;
+			border-bottom: 1px grey;
+		}
+
+		#detailInfo {
+			width: 1120px;
+			margin: 0 auto;
+		}
+
+		#venueDiv{
+			width: 1120px;
+			margin: 0 auto;
+		}
+
+		#venueDiv table{
+			width: 1120px;
+			margin: 0 auto;
+		}
+
+		#eventDetailTable, #venueDivForCss, #upComingTable, #ArtistsTable{
+			position: relative;
+			top: 10px;
+			width: 1120px;
+			margin: 0 auto;
+		}
+
+		#eventDetailTable tr:nth-child(odd), #venueTable tr:nth-child(odd), #ArtistsTable tr:nth-child(odd){
+			background-color: lightgrey;
+		}
+
+		#returnToEvents{
+			position: relative;
+			top: 30px;
+		}
+
+		.resultFavGroup{
+			text-align: center
+		}
+
+		.floatRight{
+			float: right;
+		}
+
+		.floatLeft{
+			float: left;
+		}
+
+		.clearFix{
+			clear: both;
+		}
+
+		#detailBtn{
+			position: relative;
+			right: 160px;
+			bottom: 5px;
+		}
+
+		#artistPhotoTable {
+			width: 1120px;
+			margin: 0 auto;
+		}
+
+		#artistPhotoTable li {
+			list-style: none;
+			display: inline-block;
+		}
+	
+		#artistPhotoTable p, #venueDiv p{
+			text-align: center;
+			font-weight: 700;
+			font-size: 25px;
+		}
+
+		#eventsType, #eventsOrder{
+			position: relative;
+			left: 40px;
+		}
+
+
+	</style>
+</head>
+<body>
+	<div class="=content">
+		<div class="searchDiv">
+			<div class="searchFormDiv">
+				<div class="text-center">
+					<h1>Entertainment Event Ticket Search</h1>
+				</div>
+				<form id="eventSearchForm">
+					<div class="inputGroup row">
+						<label for="keyword" class="col-sm-2 col-form-label"></label>
+						<label for="keyword" class="col-sm-2 col-form-label">Keyword<span style="color: red">*<span></label>
+						<div class="col-sm-6">
+							<input type="text" class="col-sm-8 checkValidation1" id="keyword" name="keyword" required placeholder="Enter Artist, Team or Event Name (eg. Lakers)">
+							<div class="invalidText1" style="display: none;color: red">
+								Please enter a keyword.
+							</div>
+						</div>
+					</div>
+					<div class="inputGroup row">
+						<label for="category" class="col-sm-2 col-form-label"></label>
+						<label for="category" class="col-sm-2 col-form-label">Category</label>
+						<div class="col-sm-8">
+							<select name="category" class="" id="category">
+								<option value="All" selected="selected">All</option>
+								<option value="Music">Musci</option>
+								<option value="Sports">Sports</option>
+								<option value="ArtsAndTheatre">Arts & Theatre</option>
+								<option value="Film">Film</option>
+								<option value="Miscellaneous">Miscellaneous</option>
+							</select>
+						</div>
+					</div>
+					<div class="inputGroup row">
+						<label for="distance" class="col-sm-2"></label>
+						<label for="distance" class="col-sm-2">Distance</label>
+						<div class="col-sm-6">
+							<input type="number" name="distance" placeholder="10" value="10" class="" id="distance">
+							<select name="unit" class="" id="unit">
+								<option value="miles" selected="selected">Miles</option>
+								<option value="kilometers">Kilometers</option>
+							</select>
+						</div>
+					</div>
+					<fieldset class="inputGroup">
+						<div class="row">
+							<legend class="col-form-label col-sm-2"></legend>
+							<legend class="col-form-label col-sm-2">From<span style="color: red">*</span></legend>
+							<div class="col-sm-6">
+								<div class="redioGroup">
+									<input type="radio" checked="checked" class="" name="from" value="here" id="radioBtn1">
+									<label for="radioBtn1">Current location</label>
+									<input type="text" id="currentLat" value="" style="display: none">
+									<input type="text" id="currentLon" value="" style="display: none">
+								</div>
+								<div class="radioGroup">
+									<input type="radio" class="" name="from" value="location" id="radioBtn2">
+									<label for="radioBtn2">Other.Please Specify</label>
+									<div class="">
+										<input type="text" name="addr" disabled="disabled" id="textForLoc" required="required" class="col-sm-8 checkValidation2">
+										<div class="invalidText2" style = "display: none; color: red">
+											Please enter a location
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</fieldset>
+					<div class="inputGroup row">
+						<label for="button" class="col-sm-2 col-form-label"></label>
+						<div class="col-sm-10">
+							<input type="button" value="Search" id="searchBtn" class="btn btn-primary" disabled="disabled">
+							<input type="button" value="Clear" id="clearBtn" class="btn btn-default"> 
+						</div>
+					</div>
+				</form>
+			</div>
+		<div class="resultFavGroup">
+			<button value="results" class="btn btn-primary" id="resutlBtn">Results</button>
+			<button value="favorites" class="btn btn-default" id="favoritesBtn">Favorites</button>
+		</div>
+		<div id="progressBar" style="display: none">
+			<div class="progress">
+				<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 50%" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+				</div>
+			</div>
+		</div>
+		<div id="result">
+			<div>
+				<input type="checkbox" id="" style="display: none">
+				<div id="resultList" style="display: none">
+					<div class="">
+						<input type="button" value="Details >" id="detailBtn" class="floatRight" style="display: none" disabled="disabled">
+					</div>
+					<hr class="clearFix" style="margin: 0 auto; width: 1120px"> 
+					<div id="resultDiv">
+						<div id="resultTable" style="display: none">
+							<table class="resultTableCss">
+								<thead>
+									<tr>
+										<th scope="col" class="">#</th>
+										<th scope="col" class="">Date</th>
+										<th scope="col" class="">Event</th>
+										<th scope="col" class="">Category</th>
+										<th scope="col" class="">Venue Info</th>
+										<th scope="col" class="">Favorite</th>
+									</tr>
+								</thead>
+								<tbody id="resultListBody">
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div id="favoriteDiv" style="display: none">
+						<div id="FavoriteTable">
+							<table class="resultTableCss">
+								<thead>
+									<tr>
+										<th scope="col" class="">#</th>
+										<th scope="col" class="">Date</th>
+										<th scope="col" class="">Event</th>
+										<th scope="col" class="">Category</th>
+										<th scope="col" class="">Venue Info</th>
+										<th scope="col" class="">Favorite</th>
+									</tr>
+								</thead>
+								<tbody id="favorListBody"></tbody>
+							</table>
+						</div>
+						<div id="noFavorite" class="alert alert-warning" role="alert">No records</div>
+					</div>
+				</div>
+				<div id="noResultList" style="display: none" class="alert alert-warning" role="alert">No records</div>
+				<input type="checkbox" id="" style="display: none">
+				<div id="detailInfo" style="display: none">
+					<div class="text-center">
+						<h2 class="detailTiTle">Name</h2>
+					</div>
+					<div>
+						<input type="button" value="< List" id="returnToEvents">
+					</div>				
+					<div class="floatRight">
+						<a id="twitterBtn" href="" target="_blank"><img src="http://csci571.com/hw/hw8/Images/Twitter.png" style="width: 30px; height: 30px"></a>
+						<button id="btn-inDetail" eventId="" flag="">☆</button>
+						<!-- ★ ☆ -->
+					</div>
+					<nav class="floatRight clearFix">
+						<div class="nav nav-tabs" id="nav-tab" role="tablist">
+							<a class="nav-item nav-link active" id="nav-event-tab" data-toggle="tab" href="#nav-event" role="tab" aria-controls="nav-event" aria-selected="true">Event</a>
+						    <a class="nav-item nav-link" id="nav-photo-tab" data-toggle="tab" href="#artistPhotoDiv" role="tab" aria-controls="artistPhotoDiv" aria-selected="false">Artist/Teams</a>
+						    <a class="nav-item nav-link" id="nav-venue-tab" data-toggle="tab" href="#venueDiv" role="tab" aria-controls="venueDiv" aria-selected="false">Venue</a>
+						    <a class="nav-item nav-link" id="nav-upcoming-tab" data-toggle="tab" href="#nav-upcoming" role="tab" aria-controls="nav-upcoming" aria-selected="false">Upcoming Events</a>
+						</div>
+					</nav>
+					<div class="tab-content clearFix" id="nav-tabContent">
+						<div class="tab-pane fade show active" id="nav-event" role="tabpanel" aria-labelledby="nav-event-tab">
+							<table id="eventDetailTable">
+							</table>
+						</div>
+						<div id="artistPhotoDiv" class="tab-pane fade" role="tabpanel" aria-labelledby="nav-photo-tab">
+							<div id="artistPhotoTable"></div>
+							<div class="noArtists alert alert-warning" role="alert" style="display: none">No records</div>
+						</div>
+						<div id="venueDiv" class="tab-pane fade" role="tabpanel" aria-labelledby="nav-venue-tab">
+							<p id="venueName"></p>
+							<table id="venueDivForCss">
+								<tbody id="venueTable"></tbody>
+							</table>
+							<div id="googleMapDiv"></div>
+							<div class="noVenue alert alert-warning" role="alert" style="display: none" id="noVenueID">No records</div>
+						</div>
+						<div id="nav-upcoming" class="tab-pane fade" role="tabpanel" aria-labelledby="nav-upcoming-tab">
+							<div class="reviewControl">
+								<div style="display: inline-block;">
+									<select name="orderByType" id="eventsType" style="width: 155px">
+										<option value="defalut" selected="selected">Defalut</option>
+										<option value="name">Event Name</option>
+										<option value="time">Time</option>
+										<option value="artist">Artist</option>
+										<option value="type">Type</option>
+									</select>
+								</div>
+								<div style="display: inline-block;">
+									<select name="orderByOrder" id="eventsOrder" disabled="disabled" style="background-color: lightgrey; width: 155px">
+										<option value="ascending" selected="selected">Ascending</option>
+										<option value="descending">Descending</option>
+									</select>
+								</div>
+							</div>
+							<div>
+								<div id="upComingTable">
+								</div>
+								<div class="noUpcomingEvents alert alert-warning" role="alert" style="display: none">
+									No records
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="error" class="" style = "display: none">
+			Failed to get search results
+		</div>
+	</div>
+</div>
+	</div>
+</body>
+</html>
